@@ -228,8 +228,9 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
             # sk_debug - Random from anywhere on grid
             coords_s = torch.randint(
                 0, H*W-1, size=[0], device=device)  # may duplicate
-            coords_d = torch.randint(
-                0, H*W-1, size=[H*W], device=device)  # may duplicate
+            # coords_d = torch.randint(
+            #     0, H*W-1, size=[H*W], device=device)  # may duplicate
+            coords_d = torch.arange(H*W-1, device=device)  # may duplicate
 
             inds = torch.cat([coords_s, coords_d], 0)
 
@@ -334,10 +335,11 @@ class PSNRMeter:
         self.SSIM = 0
         self.LPIPS = 0
         self.N = 0
-        # self.lpips_loss = lpips.LPIPS(net='alex')
+        self.lpips_loss = lpips.LPIPS(net='alex')
 
     def im2tensor(self, img):
-        return torch.Tensor(img.transpose(2, 0, 1) / 127.5 - 1.0)[None, ...]
+        return torch.Tensor(img.transpose(2, 0, 1))[None, ...]
+        # return torch.Tensor(img.transpose(2, 0, 1) / 127.5 - 1.0)[None, ...]
         # return torch.Tensor(img / 127.5 - 1.0)[None, ...]
 
     def clear(self):
@@ -346,28 +348,42 @@ class PSNRMeter:
         self.LPIPS = 0
         self.N = 0
 
-    def prepare_inputs(self, *inputs):
-        outputs = []
-        for i, inp in enumerate(inputs):
-            if torch.is_tensor(inp):
-                inp = inp.detach().cpu().numpy()
-            outputs.append(inp)
+    # def prepare_inputs(self, *inputs):
+    #     outputs = []
+    #     for i, inp in enumerate(inputs):
+    #         if torch.is_tensor(inp):
+    #             inp = inp.detach().cpu().numpy()
+    #         outputs.append(inp)
 
-        return outputs
+    #     return outputs
 
     def update(self, preds, truths):
         # [B, N, 3] or [B, H, W, 3], range[0, 1]
-        preds, truths = self.prepare_inputs(preds, truths)
-        preds = np.squeeze(preds)
-        truths = np.squeeze(truths)
-        # ssim = structural_similarity(truths, preds, channel_axis=2)
-        # lpips = self.lpips_loss.forward(
-        #     self.im2tensor(truths), self.im2tensor(preds)).item()
-        ssim = 0
-        lpips = 0
+        CALC_FLAG = True
+        if (CALC_FLAG):
+            time_samples = 1
+            for time in range(time_samples):
+                pred_f16 = np.squeeze(
+                    preds[time].detach().cpu().numpy())
+                truth_f16 = np.squeeze(
+                    truths[time].detach().cpu().numpy())
+                pred_int = (pred_f16*255.).astype(np.uint8)
+                truth_int = (truth_f16*255.).astype(np.uint8)
+                ssim = structural_similarity(
+                    truth_f16, pred_f16, channel_axis=2)
+                lpips = self.lpips_loss.forward(
+                    self.im2tensor(truth_int), self.im2tensor(pred_int)).item()
+                psnr = cv2.PSNR(truth_int, pred_int)
+                # psnr = -10 * np.log10(np.mean((pred_int - truth_int) ** 2))
+                # print("pred_f16.mean: {}".format(pred_f16.mean()))
+                # print("truth_f16.mean: {}".format(truth_f16.mean()))
 
-        # simplified since max_pixel_value is 1 here.
-        psnr = -10 * np.log10(np.mean((preds - truths) ** 2))
+        else:
+            ssim = 0
+            lpips = 0
+
+            # simplified since max_pixel_value is 1 here.
+            psnr = -10 * np.log10(np.mean((preds - truths) ** 2))
 
         self.V += psnr
         self.SSIM += ssim
@@ -378,23 +394,22 @@ class PSNRMeter:
         return self.V / self.N
 
     def measure_ssim(self):
-        # return self.SSIM / self.N
-        return 0
+        return self.SSIM / self.N
+        # return 0
 
     def measure_lpips(self):
-        # return self.LPIPS / self.N
-        return 0
+        return self.LPIPS / self.N
+        # return 0
 
     def write(self, writer, global_step, prefix=""):
         writer.add_scalar(os.path.join(prefix, "PSNR"),
                           self.measure_psnr(), global_step)
-        # writer.add_scalar(os.path.join(prefix, "SSIM"),
-        #                   self.measure_ssim(), global_step)
-        # writer.add_scalar(os.path.join(prefix, "LPIPS"),
-        #                   self.measure_lpips(), global_step)
+        writer.add_scalar(os.path.join(prefix, "SSIM"),
+                          self.measure_ssim(), global_step)
+        writer.add_scalar(os.path.join(prefix, "LPIPS"),
+                          self.measure_lpips(), global_step)
 
     def report(self):
-
         return f'PSNR = {self.measure_psnr():.6f} - SSIM = {self.measure_ssim():.6f} - LPIPS = {self.measure_lpips():.6f}'
 
 

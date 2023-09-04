@@ -16,15 +16,15 @@ class NeRFNetwork(NeRFRenderer):
                  encoding_deform="frequency",  # "hashgrid" seems worse
                  encoding_bg="hashgrid",
                  num_layers=3,
-                 hidden_dim=128,
+                 hidden_dim=64,
                  geo_feat_dim=64,  # change me
                  num_layers_color=4,
-                 hidden_dim_color=128,
+                 hidden_dim_color=64,
                  num_layers_bg=2,
                  hidden_dim_bg=64,
                  # a deeper MLP is very necessary for performance.
                  num_layers_deform=3,
-                 hidden_dim_deform=128,
+                 hidden_dim_deform=64,
                  bound=1,
                  **kwargs,
                  ):
@@ -260,7 +260,7 @@ class NeRFNetwork(NeRFRenderer):
             if l != self.num_layers - 1:
                 h = F.relu(h, inplace=True)
 
-        #sigma = F.relu(h[..., 0])
+        # sigma = F.relu(h[..., 0])
         sigma = trunc_exp(h[..., 0])
         geo_feat = h[..., 1:]
 
@@ -312,7 +312,7 @@ class NeRFNetwork(NeRFRenderer):
             if l != self.num_layers - 1:
                 h = F.relu(h, inplace=True)
 
-        #sigma = F.relu(h[..., 0])
+        # sigma = F.relu(h[..., 0])
         sigma = trunc_exp(h[..., 0])
         geo_feat = h[..., 1:]
 
