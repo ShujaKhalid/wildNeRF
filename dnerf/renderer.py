@@ -77,8 +77,8 @@ class NeRFRenderer(nn.Module):
 
         self.bound = bound
         self.cascade = 1 + math.ceil(math.log2(bound))
-        self.time_size = 24  # FIXME 64
-        self.grid_size = 128  # FIXME 128
+        self.time_size = 128  # FIXME 64
+        self.grid_size = 8  # FIXME 128
         self.density_scale = density_scale * 1  # TODO: used to be 1
         self.min_near = min_near
         self.density_thresh = density_thresh
@@ -634,7 +634,7 @@ class NeRFRenderer(nn.Module):
                 torch.cuda.empty_cache()
                 # print("\n\n\nPHASE 4 COMPLETE!!!\n\n\n")
 
-                FLOW_FLAG = True
+                FLOW_FLAG = False
                 if (FLOW_FLAG):
                     # 3rd pass
                     # print("\nExecuting 3rd pass...")
