@@ -15,16 +15,16 @@ class NeRFNetwork(NeRFRenderer):
                  encoding_time="frequency",
                  encoding_deform="frequency",  # "hashgrid" seems worse
                  encoding_bg="hashgrid",
-                 num_layers=3,
-                 hidden_dim=64,
-                 geo_feat_dim=64,  # change me
-                 num_layers_color=4,
-                 hidden_dim_color=64,
+                 num_layers=4,
+                 hidden_dim=256,
+                 geo_feat_dim=128,  # change me
+                 num_layers_color=5,
+                 hidden_dim_color=256,
                  num_layers_bg=2,
                  hidden_dim_bg=64,
                  # a deeper MLP is very necessary for performance.
-                 num_layers_deform=3,
-                 hidden_dim_deform=64,
+                 num_layers_deform=5,
+                 hidden_dim_deform=128,
                  bound=1,
                  **kwargs,
                  ):
@@ -69,9 +69,9 @@ class NeRFNetwork(NeRFRenderer):
         # self.encoder_dir_s, self.in_dim_dir_s = get_encoder(encoding_dir)
         # self.encoder_dir_d, self.in_dim_dir_d = get_encoder(encoding_dir)
         self.encoder_dir_s, self.in_dim_dir_s = get_encoder(
-            encoding_dir, multires=4)
+            encoding_dir, multires=4)  # 4
         self.encoder_dir_d, self.in_dim_dir_d = get_encoder(
-            encoding_dir, multires=4)
+            encoding_dir, multires=4)  # 4
 
         color_s_net = []
         for l in range(num_layers_color):
@@ -93,7 +93,7 @@ class NeRFNetwork(NeRFRenderer):
         # DYNAMIC
         # ==================
 
-        # Added for dynamic NeRF ============================================
+        # Added for dynamic NeRF =========================================
         print("\nINITIALIZING DYNAMIC MODEL!!!\n")
         self.input_ch = 63
         self.input_ch_time = 257
@@ -247,6 +247,8 @@ class NeRFNetwork(NeRFRenderer):
                 deform = F.relu(deform, inplace=True)
 
         x_def = x + deform  # FIXME: x + deform
+        # x_def = x  # FIXME: x + deform
+        # x_def = deform.float()  # FIXME: x + deform
 
         # sigma
         x_def = self.encoder_d(x_def, bound=self.bound)
