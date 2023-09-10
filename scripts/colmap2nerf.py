@@ -182,7 +182,7 @@ def run_ffmpeg_images(args):
                 # Copy over all of the images
                 for img in all_imgs:
                     new_img = "00" + img.split("/")[-1].split(".")[0] + ".jpg"
-                    #cmd = "cp -pr " + img + " " + base+"images"
+                    # cmd = "cp -pr " + img + " " + base+"images"
                     cmd = "ffmpeg -i " + img + " -vf scale=" + \
                         str(1280)+":"+str(720) + " " + base+"images/"+new_img
                     os.system(cmd)
@@ -204,12 +204,12 @@ def run_ffmpeg_images(args):
                     print(cmd)
                     os.system(cmd)
         # TODO: validate
-        #args.images = new_loc
+        # args.images = new_loc
     else:
         if (args.dataset == "nvidia"):
             new_loc = base + "/" + args.mode + "/"
             prod = base.split("/")[-3]
-            trn_base = "/home/skhalid/Documents/torch-ngp/results/gt/" + prod
+            trn_base = "/home/skhalid/Documents/dnerf-ingp/results/gt/" + prod
             query_loc = trn_base
             os.system("mkdir -p "+new_loc)
             files = glob.glob(query_loc+"/*.png")
@@ -220,7 +220,7 @@ def run_ffmpeg_images(args):
                 # fn = file.split("/")[-1]
                 cmd = "ffmpeg -i "+file+" -vf scale=" + \
                     str(args.W)+":"+str(args.H) + " " + new_loc+fn
-                #print("cmd: {}".format(cmd))
+                # print("cmd: {}".format(cmd))
                 os.system(cmd)
 
             # Use existing validation masks
@@ -282,7 +282,7 @@ def run_ffmpeg_images(args):
                 # fn = file.split("/")[-1]
                 cmd = "ffmpeg -i "+file+" -vf scale=" + \
                     str(960)+":"+str(540) + " " + new_loc+fn
-                #print("cmd: {}".format(cmd))
+                # print("cmd: {}".format(cmd))
                 os.system(cmd)
 
 
@@ -306,7 +306,7 @@ def run_colmap(args):
         # f"colmap feature_extractor --ImageReader.camera_model OPENCV --SiftExtraction.estimate_affine_shape {flag_EAS} --SiftExtraction.domain_size_pooling {flag_EAS} --ImageReader.single_camera 1 --SiftExtraction.max_num_features 100000 --database_path {db} --image_path {images}")
         f"colmap feature_extractor --ImageReader.camera_model OPENCV --SiftExtraction.estimate_affine_shape {flag_EAS} --SiftExtraction.domain_size_pooling {flag_EAS} --ImageReader.single_camera 1 --database_path {db} --image_path {images}")
     do_system(
-        f"colmap {args.colmap_matcher}_matcher --SiftMatching.guided_matching {flag_EAS} --SiftMatching.confidence 0.1 --database_path {db}")
+        f"colmap {args.colmap_matcher}_matcher --SiftMatching.guided_matching {flag_EAS} --SiftMatching.confidence 0.9 --database_path {db}")
     try:
         shutil.rmtree(sparse)
     except:
@@ -637,8 +637,8 @@ if __name__ == "__main__":
         if (args.dataset == "nvidia" or args.dataset == "custom"):
             BASE = args.images.split("images_")[0]
             imgs = [v["file_path"] for v in frames]
-            #folder = output_path.split("/")[-1].split(".")[0].split("_")[-1]
-            #print("folder: {}".format(folder))
+            # folder = output_path.split("/")[-1].split(".")[0].split("_")[-1]
+            # print("folder: {}".format(folder))
             # for img in imgs:
             #     cmd = "cp -pr " + img + " " + \
             #         BASE+"/"+args.mode+"/"+img.split("/")[-1]
@@ -649,7 +649,7 @@ if __name__ == "__main__":
                 json.dump(out, outfile, indent=2)
         else:
             imgs = [v["file_path"] for v in frames]
-            #folder = output_path.split("/")[-1].split(".")[0].split("_")[-1]
+            # folder = output_path.split("/")[-1].split(".")[0].split("_")[-1]
             BASE = args.images.split("images_")[0]
             # print("folder: {}".format(folder))
             for img in imgs:
