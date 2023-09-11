@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     # =================================================================================
     # training options
-    parser.add_argument('--iters', type=int, default=300000,
+    parser.add_argument('--iters', type=int, default=10000,
                         help="training iters")
     parser.add_argument('--lr', type=float, default=1e-2,  # 1e-2
                         help="initial learning rate")
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--dynamic_iters', type=str, default="{'d1': (0, 4800000)}",  # 2400 iters
                         # parser.add_argument('--dynamic_iters', type=str, default="{'d1': (0, 12000)}",  # 24000 iters
                         help="intervals to train the dynamic model for")
-    parser.add_argument('--update_extra_interval', type=int, default=24000000,  # TODO: used to be 100
+    parser.add_argument('--update_extra_interval', type=int, default=24,  # TODO: used to be 100
                         help="iter interval to update extra status (only valid when using --cuda_ray)")
     # =================================================================================
 
