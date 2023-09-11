@@ -24,6 +24,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.distributed as dist
 from torch.utils.data import Dataset, DataLoader
+from torch.optim.lr_scheduler import MultiStepLR
 
 import trimesh
 import mcubes
@@ -31,6 +32,9 @@ from rich.console import Console
 from torch_ema import ExponentialMovingAverage
 
 from packaging import version as pver
+
+# from dnerf.network_fxfy import LearnFocal
+# from dnerf.network_pose import LearnPose
 
 
 def custom_meshgrid(*args):
@@ -77,10 +81,12 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
     i, j = custom_meshgrid(torch.linspace(
         0, (W)-1, W, device=device), torch.linspace(0, (H)-1, H, device=device))
 
-    # print("i.shape: {}".format(i.shape))
+    # print("poses: {}".format(poses))
+    # print("device: {}".format(device))
+    # print("i (before): {}".format(i))
     # print("j.shape: {}".format(j.shape))
-
     i = i.t().reshape([1, H*W]).expand([B, H*W]) + 0.5
+    # print("i (after): {}".format(i))
     j = j.t().reshape([1, H*W]).expand([B, H*W]) + 0.5
 
     results = {}
@@ -119,7 +125,7 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
                     # print("=======================================\n\n")
                     # if (coords_d.shape[-1]-1 >= N):
                     inds_s = torch.randint(
-                        0, coords_s.shape[-1]-1, size=[0], device=device)  # may duplicate
+                        0, coords_s.shape[-1]-1 if coords_s.shape[-1] > 0 else 1, size=[0], device=device)  # may duplicate
                     inds_d = torch.randint(
                         0, coords_d.shape[-1]-1, size=[int(N)], device=device)  # may duplicate
                     # else:
@@ -160,7 +166,7 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
                     inds_s = torch.randint(
                         0, coords_s.shape[-1]-1, size=[int(N)], device=device)  # may duplicate
                     inds_d = torch.randint(
-                        0, coords_d.shape[-1]-1, size=[0], device=device)  # may duplicate
+                        0, 1, size=[0], device=device)  # may duplicate
 
                     coords_s = coords_s[inds_s]
                     coords_d = coords_d[inds_d]
@@ -176,8 +182,10 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
                 # For dnerf datasets - not sure if required
                 inds = torch.randint(
                     0, H*W, size=[N], device=device)  # may duplicate
-                results['inds_s'] = torch.Tensor([]).cuda()
-                results['inds_d'] = inds
+                # results['inds_s'] = torch.Tensor([]).cuda()
+                # results['inds_d'] = inds
+                results['inds_s'] = inds
+                results['inds_d'] = torch.Tensor([]).cuda()
 
             inds = inds.expand([B, inds.shape[0]])
         else:
@@ -218,6 +226,11 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
             coords_s = torch.where(mask == 0.0)[0]
             coords_d = torch.where(mask > 0.0)[0]
 
+            # print("\n\ncoords_s.shape: {}".format(coords_s.shape))
+            # print("coords_d.shape: {}".format(coords_d.shape))
+            # print("mask.shape: {}".format(mask.shape))
+            # print("masks.shape: {}".format(masks.shape))
+
             # no segmentation assistance
             # coords_s = torch.randint(
             #     0, coords_s.shape[-1]-1, size=[int(len(coords_s)+len(coords_d))], device=device)  # may duplicate
@@ -235,17 +248,17 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
             # sk_debug - Random from anywhere on grid
             coords_s = torch.randint(
                 0, H*W-1, size=[0], device=device)  # may duplicate
-            # coords_d = torch.randint(
-            #     0, H*W-1, size=[H*W], device=device)  # may duplicate
-            coords_d = torch.arange(H*W-1, device=device)  # may duplicate
+            coords_d = torch.randint(
+                0, H*W-1, size=[H*W], device=device)  # may duplicate
 
             inds = torch.cat([coords_s, coords_d], 0)
 
             results['inds_s'] = coords_s
             results['inds_d'] = coords_d
 
-        inds = torch.arange(H*W*MODELS, device=device).expand([B, H*W*MODELS])
-        results['inds'] = inds
+            inds = torch.arange(
+                H*W*MODELS, device=device).expand([B, H*W*MODELS])
+            results['inds'] = inds
 
     zs = torch.ones_like(i)
     xs = (i - cx) / fx * zs
@@ -256,9 +269,27 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
     rays_o = poses[..., :3, 3]  # [B, 3]
     rays_o = rays_o[..., None, :].expand_as(rays_d)  # [B, N, 3]
 
+    # print("\nxs.requires_grad: {}".format(xs.requires_grad))
+    # print("ys.requires_grad: {}".format(ys.requires_grad))
+    # print("zs.requires_grad: {}".format(zs.requires_grad))
+    # print("directions.requires_grad: {}".format(directions.requires_grad))
+    # print("rays_d.requires_grad: {}".format(rays_d.requires_grad))
+    # print("rays_o.requires_grad: {}".format(rays_o.requires_grad))
+    # print("poses.requires_grad: {}".format(poses.requires_grad))
+    # print("intrinsics.requires_grad: {}".format(intrinsics.requires_grad))
+    # print("fx.requires_grad: {}".format(fx.requires_grad))
+    # print("fy.requires_grad: {}".format(fy.requires_grad))
+    # print("rays_o: {}".format(rays_o))
+    # print("rays_d: {}".format(rays_d))
     # print("\nrays_o.shape: {}".format(rays_o.shape))
     # print("\nrays_d.shape: {}".format(rays_d.shape))
 
+    # inds = torch.arange(4096, device=device).expand([B, 4096])
+    # inds_s = torch.arange(4096, device=device).expand([B, 4096])
+    # inds_d = torch.arange(4096, device=device).expand([B, 4096])
+    results['inds'] = inds
+    # results['inds_s'] = inds_s
+    # results['inds_d'] = inds_d
     results['rays_o'] = rays_o
     results['rays_d'] = rays_d
 
@@ -425,8 +456,14 @@ class Trainer(object):
                  name,  # name of this experiment
                  opt,  # extra conf
                  model,  # network
+                 model_fxfy,  # network
+                 model_pose,  # network
+                 #  model_camera=None,  # camera_network
                  criterion=None,  # loss function, if None, assume inline implementation in train_step
-                 optimizer=None,  # optimizer
+                 optimizer_model=None,  # optimizer
+                 optimizer_fxfy=None,  # optimizer
+                 optimizer_pose=None,  # optimizer
+                 #  optimizer_cam_model=None,  # optimizer
                  ema_decay=None,  # if use EMA, set the decay
                  lr_scheduler=None,  # scheduler
                  # metrics for evaluation, if None, use val_loss to measure performance, else use the first metric.
@@ -456,6 +493,9 @@ class Trainer(object):
         self.local_rank = local_rank
         self.world_size = world_size
         self.workspace = workspace
+        self.tensorboard_folder = opt.tensorboard_folder
+        self.pred_intrinsics = opt.pred_intrinsics
+        self.pred_extrinsics = opt.pred_extrinsics
         self.ema_decay = ema_decay
         self.fp16 = fp16
         self.best_mode = best_mode
@@ -470,32 +510,49 @@ class Trainer(object):
         self.device = device if device is not None else torch.device(
             f'cuda:{local_rank}' if torch.cuda.is_available() else 'cpu')
         self.console = Console()
-        self.optimizer_func = optimizer
+        self.optimizer_func = optimizer_model
+        # self.optimizer_cam_func = optimizer_cam_model
         self.scheduler_func = lr_scheduler
 
-        model.to(self.device)
+        # model_camera.to(self.device)
         if self.world_size > 1:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
             model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[local_rank])
         self.model = model
+        self.model_fxfy = model_fxfy
+        self.model_pose = model_pose
+
+        # self.model_fxfy = LearnFocal(H=1080, W=1920).cuda()  # FIXME
+        # self.model_pose = LearnPose(num_cams=24).cuda()  # FIXME
+        # self.model_camera = model_camera
+
+        self.model.to(self.device)
+        self.model_fxfy.to(self.device)
+        self.model_pose.to(self.device)
 
         if isinstance(criterion, nn.Module):
             criterion.to(self.device)
         self.criterion = criterion
 
-        if optimizer is None:
-            self.optimizer = optim.Adam(
-                self.model.parameters(), lr=0.001, weight_decay=5e-4)  # naive adam
+        if optimizer_model is None:
+            self.optimizer_model = optim.Adam(self.model.parameters(),
+                                              lr=0.001, weight_decay=5e-4)  # naive adam
         else:
             self.opt_state = "static"
-            self.optimizer = optimizer(self.model, self.opt_state)
+            self.optimizer_model = optimizer_model(
+                self.model, self.opt_state)
+
+        self.optimizer_fxfy = optim.Adam(self.model_fxfy.parameters(),
+                                         lr=0.000025, weight_decay=5e-4)  # naive adam
+        self.optimizer_pose = optim.Adam(self.model_pose.parameters(),
+                                         lr=0.00005, weight_decay=5e-4)  # naive adam
 
         if lr_scheduler is None:
             self.lr_scheduler = optim.lr_scheduler.LambdaLR(
-                self.optimizer, lr_lambda=lambda epoch: 1)  # fake scheduler
+                self.optimizer_model, lr_lambda=lambda epoch: 1)  # fake scheduler
         else:
-            self.lr_scheduler = lr_scheduler(self.optimizer)
+            self.lr_scheduler = lr_scheduler(self.optimizer_model)
 
         if ema_decay is not None:
             self.opt_state = "static"
@@ -505,6 +562,11 @@ class Trainer(object):
             self.ema = None
 
         self.scaler = torch.cuda.amp.GradScaler(enabled=self.fp16)
+
+        self.scheduler_focal = MultiStepLR(
+            self.optimizer_fxfy, milestones=list(range(0, 10000, 100)), gamma=0.9)
+        self.scheduler_pose = MultiStepLR(
+            self.optimizer_pose, milestones=list(range(0, 10000, 100)), gamma=0.9)
 
         # variable init
         self.epoch = 0
@@ -748,8 +810,10 @@ class Trainer(object):
 
     def train(self, train_loader, valid_loader, max_epochs):
         if self.use_tensorboardX and self.local_rank == 0:
+            # self.writer = tensorboardX.SummaryWriter(
+            #     os.path.join(self.workspace, "run", self.name, str(int(time.time()))))
             self.writer = tensorboardX.SummaryWriter(
-                os.path.join(self.workspace, "run", self.name, str(int(time.time()))))
+                os.path.join(self.workspace, "run", self.name, self.tensorboard_folder))
 
         # mark untrained region (i.e., not covered by any camera from the training dataset)
         if self.model.cuda_ray:
@@ -851,13 +915,20 @@ class Trainer(object):
 
             self.global_step += 1
 
-            self.optimizer.zero_grad()
+            self.optimizer_model.zero_grad()
+            self.optimizer_fxfy.zero_grad()
+            self.optimizer_pose.zero_grad()
+            # self.optimizer_cam_model.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=self.fp16):
                 preds, truths, loss = self.train_step(data)
 
             self.scaler.scale(loss).backward()
-            self.scaler.step(self.optimizer)
+
+            self.scaler.step(self.optimizer_model)
+            # self.scaler.step(self.optimizer_fxfy)
+            # self.scaler.step(self.optimizer_pose)
+            # self.scaler.step(self.optimizer_cam_model)
             self.scaler.update()
 
             if self.scheduler_update_every_step:
@@ -878,7 +949,7 @@ class Trainer(object):
 
         outputs = {
             'loss': average_loss,
-            'lr': self.optimizer.param_groups[0]['lr'],
+            'lr': self.optimizer_model.param_groups[0]['lr'],
         }
 
         return outputs
@@ -941,7 +1012,7 @@ class Trainer(object):
 
     def train_one_epoch(self, loader):
         self.log(
-            f"==> Start Training Epoch {self.epoch}, lr={self.optimizer.param_groups[0]['lr']:.6f} ...")
+            f"==> Start Training Epoch {self.epoch}, lr={self.optimizer_model.param_groups[0]['lr']:.6f} ...")
 
         total_loss = 0
         if self.local_rank == 0 and self.report_metric_at_train:
@@ -949,6 +1020,10 @@ class Trainer(object):
                 metric.clear()
 
         self.model.train()
+        self.model_fxfy.train()
+        self.model_pose.train()
+        # self.model_camera.train()
+        # self.optimizer_cam_model = self.optimizer_cam_func(self.model_camera)
 
         # distributedSampler: must call set_epoch() to shuffle indices across multiple epochs
         # ref: https://pytorch.org/docs/stable/data.html
@@ -975,47 +1050,85 @@ class Trainer(object):
             # print("DYNAMIC MODEL ACTIVATED!!! - (optimizer)")
             # print("========================================\n\n")
             self.opt_state = "dynamic"
-            self.optimizer = self.optimizer_func(self.model, self.opt_state)
+            self.optimizer_model = self.optimizer_func(
+                self.model, self.opt_state)
             # self.lr_scheduler = self.scheduler_func(self.optimizer)
 
-            for name, param in self.model.named_parameters():
-                if param.requires_grad:
-                    print(name)
+            # for name, param in self.model.named_parameters():
+            #     if param.requires_grad:
+            #         print(name)
 
         elif (('b1' in cond or 'b2' in cond or 'b3' in cond or 'b4' in cond) and self.opt_state != "all"):
             # print("\n\n========================================")
             # print("COMBINED MODEL ACTIVATED!!! - (optimizer)")
             # print("========================================\n\n")
             self.opt_state = "all"
-            self.optimizer = self.optimizer_func(self.model, self.opt_state)
+            self.optimizer_model = self.optimizer_func(
+                self.model, self.opt_state)
             # self.lr_scheduler = self.scheduler_func(self.optimizer)
         elif ('b1' not in cond and 'b2' not in cond and 'b3' not in cond and 'b4' not in cond and 'd1' not in cond and 'd2' not in cond and 'd3' not in cond and 'd4' not in cond):
             # print("\n\n========================================")
             # print("STATIC MODEL ACTIVATED!!! - (optimizer)")
             # print("========================================\n\n")
             self.opt_state = "static"
-            self.optimizer = self.optimizer_func(self.model, self.opt_state)
+            self.optimizer_model = self.optimizer_func(
+                self.model, self.opt_state)
             # self.lr_scheduler = self.scheduler_func(self.optimizer)
 
         for data in loader:
 
             # update grid every 16 steps
             # FIXME: Not sure exactly how this works
-            if self.model.cuda_ray and self.global_step % self.opt.update_extra_interval == 0 and self.global_step < 4800:  # FIXME: Add to defaults
+            if self.model.cuda_ray and self.global_step % self.opt.update_extra_interval == 0 and self.global_step < 5000:  # FIXME: Add to defaults
                 with torch.cuda.amp.autocast(enabled=self.fp16):
                     self.model.update_extra_state()
 
             self.local_step += 1
             self.global_step += 1
 
-            self.optimizer.zero_grad()
+            self.optimizer_model.zero_grad()
+            # self.optimizer_fxfy.zero_grad()
+            # self.optimizer_pose.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=self.fp16):
                 preds, truths, loss = self.train_step(data)
 
             self.scaler.scale(loss).backward()
-            self.scaler.step(self.optimizer)
+
+            # Results in nan/inf errors
+            # break
+
+            # print("local_step: {}".format(self.local_step))
+            # print("global_step: {}".format(self.global_step))
+
+            self.scaler.step(self.optimizer_model)
+            # self.scaler.step(self.optimizer_fxfy)
+            # TODO: Add to config
+            # if (self.global_step <= 1000 and self.pred_extrinsics):
+            #     self.scaler.step(self.optimizer_pose)
+            # if (self.global_step <= 480 and self.pred_intrinsics):
+            #     self.scaler.step(self.optimizer_fxfy)
+
+            # print("\n\n\n model_fxfy")
+            # for p in self.model_fxfy.parameters():
+            #     print(p.name, p.data, p.requires_grad, p.grad, p.is_leaf)
+
+            # print("\n\n\n model_pose")
+            # for p in self.model_pose.parameters():
+            #     print(p.name, p.data, p.grad, p.is_leaf)
+
             self.scaler.update()
+
+            # print("\n\n\n model_parameters")
+            # for p in self.model.parameters():
+            #     print(p.name, p.data, p.requires_grad, p.grad, p.is_leaf)
+
+            # self.optimizer_model.step()
+            # self.optimizer_fxfy.step()
+            # self.optimizer_pose.step()
+            # self.optimizer_model.zero_grad()
+            # self.optimizer_fxfy.zero_grad()
+            # self.optimizer_pose.zero_grad()
 
             if self.scheduler_update_every_step:
                 self.lr_scheduler.step()
@@ -1032,11 +1145,11 @@ class Trainer(object):
                     self.writer.add_scalar(
                         "validation/loss", loss_val, self.global_step)
                     self.writer.add_scalar(
-                        "validation/lr", self.optimizer.param_groups[0]['lr'], self.global_step)
+                        "validation/lr", self.optimizer_model.param_groups[0]['lr'], self.global_step)
 
                 if self.scheduler_update_every_step:
                     pbar.set_description(
-                        f"loss={loss_val:.4f} ({total_loss/self.local_step:.4f}), lr={self.optimizer.param_groups[0]['lr']:.6f}")
+                        f"loss={loss_val:.4f} ({total_loss/self.local_step:.4f}), lr={self.optimizer_model.param_groups[0]['lr']:.6f}")
                 else:
                     pbar.set_description(
                         f"loss={loss_val:.4f} ({total_loss/self.local_step:.4f})")
@@ -1093,7 +1206,7 @@ class Trainer(object):
                 self.local_step += 1
 
                 # print("data.keys(): {}".format(data.keys()))
-                # print("data.time: {}".format(data["time"]))
+                # print("\ndata.time: {}".format(data["time"]))
 
                 with torch.cuda.amp.autocast(enabled=self.fp16):
                     preds, preds_depth, truths, loss = self.eval_step(data)
@@ -1236,7 +1349,7 @@ class Trainer(object):
             state['mean_density'] = self.model.mean_density
 
         if full:
-            state['optimizer'] = self.optimizer.state_dict()
+            state['optimizer'] = self.optimizer_model.state_dict()
             state['lr_scheduler'] = self.lr_scheduler.state_dict()
             state['scaler'] = self.scaler.state_dict()
             if self.ema is not None:
@@ -1329,9 +1442,10 @@ class Trainer(object):
         self.log(
             f"[INFO] load at epoch {self.epoch}, global step {self.global_step}")
 
-        if self.optimizer and 'optimizer' in checkpoint_dict:
+        if self.optimizer_model and 'optimizer' in checkpoint_dict:
             try:
-                self.optimizer.load_state_dict(checkpoint_dict['optimizer'])
+                self.optimizer_model.load_state_dict(
+                    checkpoint_dict['optimizer'])
                 self.log("[INFO] loaded optimizer.")
             except:
                 self.log("[WARN] Failed to load optimizer.")

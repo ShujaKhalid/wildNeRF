@@ -291,7 +291,7 @@ class NeRFDataset:
 
         # calculate mean radius of all camera poses
         self.radius = self.poses[:, :3, 3].norm(dim=-1).mean(0).item()
-        #print(f'[INFO] dataset camera poses: radius = {self.radius:.4f}, bound = {self.bound}')
+        # print(f'[INFO] dataset camera poses: radius = {self.radius:.4f}, bound = {self.bound}')
 
         # initialize error_map
         if self.training and self.opt.error_map:
@@ -306,7 +306,7 @@ class NeRFDataset:
 
         # [debug] uncomment to view examples of randomly generated poses.
         # visualize_poses(rand_poses(100, self.device, radius=self.radius).cpu().numpy())
-        self.FLOW_FLAG = False
+        self.FLOW_FLAG = True
         if (self.FLOW_FLAG):
             # TODO: ADD the additional pre-reqs here
             basedir = self.root_path
@@ -508,7 +508,7 @@ class NeRFDataset:
                 :, :, index].to(self.device)  # [B, N]
             masks_val = torch.reshape(self.masks_val, (-1, self.masks.shape[2], self.masks.shape[3]))[
                 :, :, index].to(self.device)  # [B, N]
-            grid = torch.Tensor(self.grid)
+            grid = torch.Tensor(self.grid).to(self.device)
             grid = torch.reshape(
                 grid, (grid.shape[0], -1, grid.shape[-1]))
         else:
