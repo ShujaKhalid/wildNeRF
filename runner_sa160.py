@@ -6,7 +6,7 @@ import numpy as np
 DATASET = "sa160"
 DATASET_PATH = "/home/skhalid/Documents/datalake/sa160/"
 # DATASET_PATH = "/home/skhalid/Desktop/sa160/"
-RESULTS_FOLDER = "/home/skhalid/Documents/dnerf-ingp/results/Ours/custom"
+RESULTS_FOLDER = "/home/skhalid/Documents/wildnerf/results/Ours/custom"
 BASE = "/home/skhalid/Documents/datalake/dnerf/custom/"
 DEPTH_FOLDER = BASE+"/disp_img_val/"
 ORIG_FOLDER = BASE+"/images/"
