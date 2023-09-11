@@ -4,8 +4,8 @@ import tqdm
 import numpy as np
 
 DATASET = "sa160"
-# DATASET_PATH = "/home/skhalid/Documents/datalake/sa160/"
-DATASET_PATH = "/home/skhalid/Desktop/sa160/"
+DATASET_PATH = "/home/skhalid/Documents/datalake/sa160/"
+# DATASET_PATH = "/home/skhalid/Desktop/sa160/"
 RESULTS_FOLDER = "/home/skhalid/Documents/torch-ngp/results/Ours/custom"
 BASE = "/home/skhalid/Documents/datalake/dnerf/custom/"
 DEPTH_FOLDER = BASE+"/disp_img_val/"
@@ -16,8 +16,11 @@ DEST = "/home/skhalid/Desktop/" + DATASET + "/"
 #     glob.glob(DATASET_PATH+"/*cutting*/*.mp4") + \
 #     glob.glob(DATASET_PATH+"/*knotting*/*.mp4") + \
 #     glob.glob(DATASET_PATH+"/*thread*/*.mp4")
-all_clips = glob.glob(DATASET_PATH+"/*.mp4")
-MAX_CASES = 1
+# all_clips = glob.glob(DATASET_PATH+"/*dissection_thermal*/*.mp4") + \
+#     glob.glob(DATASET_PATH+"/*cutting*/*.mp4") + \
+#     glob.glob(DATASET_PATH+"/*thread*/*.mp4")
+all_clips = glob.glob(DATASET_PATH+"/*/*.mp4")
+MAX_CASES = 10000
 
 for clip in tqdm.tqdm(all_clips[:MAX_CASES]):
     # print("Extracting clip: {}".format(clip))
@@ -48,7 +51,7 @@ for clip in tqdm.tqdm(all_clips[:MAX_CASES]):
     cmd = "rm -rf custom/checkpoints/* && time ./runner.sh --run"
     os.system(cmd)
 
-    cmd = "mv " + ORIG_FOLDER + "/*.jpg " + new_dest_orig + "/"
+    cmd = "cp -pR " + ORIG_FOLDER + "/*.jpg " + new_dest_orig + "/"
     os.system(cmd)
 
     cmd = "mv " + RESULTS_FOLDER + "/*.png " + new_dest_recon + "/"

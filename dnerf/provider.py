@@ -276,6 +276,8 @@ class NeRFDataset:
                 # print("image.shape: {}".format(image.shape))
                 self.times.append(time)
 
+        print(self.poses)
+
         self.poses = torch.from_numpy(
             np.stack(self.poses, axis=0))  # [N, 4, 4]
         if self.images is not None:

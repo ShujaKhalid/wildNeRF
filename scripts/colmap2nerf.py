@@ -543,7 +543,7 @@ if __name__ == "__main__":
                 up += c2w[0:3, 1]
 
                 frame = {
-                    "file_path": rel_name[1:] if args.mode == "val" else rel_name,
+                    "file_path": rel_name.replace('images', 'val') if args.mode == "val" else rel_name,
                     "sharpness": b,
                     "transform_matrix": c2w
                 }

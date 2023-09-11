@@ -29,8 +29,8 @@ DATASET_PATH="/home/skhalid/Documents/datalake/dynamic_scene_data_full/nvidia_da
 
 
 # Run custom scene
-# SCENE="custom"
-# DATASET_PATH="../datalake/dnerf/custom"
+SCENE="custom"
+DATASET_PATH="../datalake/dnerf/custom"
 
 NM_WEIGHTS="/home/skhalid/Documents/datalake/neural_motion_weights/"
 WEIGHTS_MIDAS=$NM_WEIGHTS"midas_v21-f6b98070.pt"

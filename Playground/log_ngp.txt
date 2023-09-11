@@ -2753,3 +2753,11 @@ PSNR = 19.165675 - SSIM = 0.646242 - LPIPS = 0.187825
 [INFO] #parameters: 24555328
 [INFO] Loading latest checkpoint ...
 [INFO] Latest checkpoint is Playground/checkpoints/ngp_ep1180.pth
+[INFO] Trainer: ngp | 2023-09-11_12-51-19 | cuda | fp16 | Playground
+[INFO] #parameters: 24555328
+[INFO] Loading latest checkpoint ...
+[INFO] Latest checkpoint is Playground/checkpoints/ngp_ep1180.pth
+[INFO] Trainer: ngp | 2023-09-11_12-57-32 | cuda | fp16 | Playground
+[INFO] #parameters: 24555328
+[INFO] Loading latest checkpoint ...
+[INFO] Latest checkpoint is Playground/checkpoints/ngp_ep1180.pth
