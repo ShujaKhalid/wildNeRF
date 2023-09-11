@@ -103,7 +103,7 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
                 coords_d = torch.where(mask > thresh)[0]  # For training
                 coords_s_mask = torch.where(mask == 0.0)[0]
                 coords_d_mask = torch.where(mask > 0.0)[0]  # For inference
-                # print("coords_s: {}".format(coords_s))
+                # print("\ncoords_s: {}".format(coords_s))
                 # print("coords_d: {}".format(coords_d))
                 # print("coords_s_unq: {}".format(torch.unique(coords_s)))
                 # print("coords_d_unq: {}".format(torch.unique(coords_d)))

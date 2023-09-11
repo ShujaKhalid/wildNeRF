@@ -17,7 +17,7 @@ class NeRFNetwork(NeRFRenderer):
                  encoding_bg="hashgrid",
                  num_layers=3,
                  hidden_dim=64,
-                 geo_feat_dim=256,  # change me
+                 geo_feat_dim=128,  # change me
                  num_layers_color=4,
                  hidden_dim_color=64,
                  num_layers_bg=2,
