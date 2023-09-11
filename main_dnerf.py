@@ -28,6 +28,8 @@ if __name__ == '__main__':
                         help="initial learning rate")
     parser.add_argument('--lr_net', type=float, default=1e-3,  # 1e-3
                         help="initial learning rate")
+    parser.add_argument('--lr_net_deform', type=float, default=1e-5,  # 1e-3
+                        help="initial learning rate")
     parser.add_argument('--ckpt', type=str, default='latest')
     parser.add_argument('--num_rays', type=int, default=1024,
                         help="num rays sampled per image for each training step")
@@ -163,7 +165,7 @@ if __name__ == '__main__':
     else:
 
         def optimizer(model, state): return torch.optim.Adam(model.get_params(
-            opt.lr, opt.lr_net, svd=state), betas=(0.9, 0.99), eps=1e-15)
+            opt.lr, opt.lr_net, opt.lr_net_deform, svd=state), betas=(0.9, 0.99), eps=1e-15)
 
         train_loader = NeRFDataset(
             opt, device=device, type='train').dataloader()

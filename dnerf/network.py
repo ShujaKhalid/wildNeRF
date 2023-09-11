@@ -374,7 +374,7 @@ class NeRFNetwork(NeRFRenderer):
         return rgbs
 
     # optimizer utils
-    def get_params(self, lr, lr_net, svd):
+    def get_params(self, lr, lr_net, lr_net_deform, svd):
         if (svd == "static"):
             params = [
                 {'params': self.encoder_s.parameters(), 'lr': lr},
@@ -397,7 +397,7 @@ class NeRFNetwork(NeRFRenderer):
                 {'params': self.encoder_time.parameters(), 'lr': lr},
                 {'params': self.sigma_d_net.parameters(), 'lr': lr_net},
                 {'params': self.color_d_net.parameters(), 'lr': lr_net},
-                {'params': self.deform_d_net.parameters(), 'lr': lr_net},
+                {'params': self.deform_d_net.parameters(), 'lr': lr_net_deform},
                 # {'params': self.blend_net.parameters(), 'lr': lr_net},
                 # {'params': self.sf_net.parameters(), 'lr': lr_net},
             ]
@@ -418,7 +418,7 @@ class NeRFNetwork(NeRFRenderer):
                 {'params': self.color_s_net.parameters(), 'lr': lr_net},
                 {'params': self.sigma_d_net.parameters(), 'lr': lr_net},
                 {'params': self.color_d_net.parameters(), 'lr': lr_net},
-                {'params': self.deform_d_net.parameters(), 'lr': lr_net},
+                {'params': self.deform_d_net.parameters(), 'lr': lr_net_deform},
                 # {'params': self.blend_net.parameters(), 'lr': lr_net},
                 # {'params': self.sf_net.parameters(), 'lr': lr_net},
             ]
