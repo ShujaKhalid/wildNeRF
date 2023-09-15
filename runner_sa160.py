@@ -40,29 +40,29 @@ for clip in tqdm.tqdm(all_clips[:MAX_CASES]):
     new_dest_recon = DEST + case + "/recon"
     new_dest_depth = DEST + case + "/depth"
 
-    # # ==> Create the new folder and add the results to it
-    # cmd = "mkdir -p " + BASE
-    # os.system(cmd)
-    # cmd = "mkdir -p " + DEPTH_FOLDER
-    # os.system(cmd)
-    # cmd = "mkdir -p " + ORIG_FOLDER
-    # os.system(cmd)
-    # cmd = "mkdir -p " + new_dest_orig
-    # os.system(cmd)
-    # cmd = "mkdir -p " + new_dest_recon
-    # os.system(cmd)
-    # cmd = "mkdir -p " + new_dest_depth
-    # os.system(cmd)
+    # ==> Create the new folder and add the results to it
+    cmd = "mkdir -p " + BASE
+    os.system(cmd)
+    cmd = "mkdir -p " + DEPTH_FOLDER
+    os.system(cmd)
+    cmd = "mkdir -p " + ORIG_FOLDER
+    os.system(cmd)
+    cmd = "mkdir -p " + new_dest_orig
+    os.system(cmd)
+    cmd = "mkdir -p " + new_dest_recon
+    os.system(cmd)
+    cmd = "mkdir -p " + new_dest_depth
+    os.system(cmd)
 
-    # # ==> Copy the clip over with the new name
-    # cmd = "cp -p " + clip + " " + BASE + "clippy1.mp4"
-    # os.system(cmd)
+    # ==> Copy the clip over with the new name
+    cmd = "cp -p " + clip + " " + BASE + "clippy1.mp4"
+    os.system(cmd)
 
-    # # ==> Run colmap
-    # # - extraction and resuired files
-    # cmd = "./runner.sh --extract " + BASE + \
-    #     "clippy1.mp4 clippy1.mp4 --dataset custom"
-    # os.system(cmd)
+    # ==> Run colmap
+    # - extraction and resuired files
+    cmd = "./runner.sh --extract " + BASE + \
+        "clippy1.mp4 clippy1.mp4 --dataset custom"
+    os.system(cmd)
 
     # ==> Run the model
     cmd = "rm -rf custom/checkpoints/* && time ./runner.sh --run custom " + BASE
