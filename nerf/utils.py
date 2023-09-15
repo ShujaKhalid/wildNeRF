@@ -119,7 +119,7 @@ def get_rays(poses, intrinsics, H, W, masks, N=-1, error_map=None, dynamic_iter=
                     # print("=======================================\n\n")
                     # if (coords_d.shape[-1]-1 >= N):
                     inds_s = torch.randint(
-                        0, coords_s.shape[-1]-1, size=[0], device=device)  # may duplicate
+                        0, coords_s.shape[-1]+1, size=[0], device=device)  # may duplicate
                     inds_d = torch.randint(
                         0, coords_d.shape[-1]-1, size=[int(N)], device=device)  # may duplicate
                     # else:

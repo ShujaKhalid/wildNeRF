@@ -73,8 +73,8 @@ class Trainer(_Trainer):
             return pred_rgb, None, loss
 
         images = data['images']  # [B, N, 3/4]
-        images_b = data['images_b']  # [B, N, 3/4]
-        images_f = data['images_f']  # [B, N, 3/4]
+        # images_b = data['images_b']  # [B, N, 3/4]
+        # images_f = data['images_f']  # [B, N, 3/4]
 
         B, N, C = images.shape
 
@@ -95,8 +95,8 @@ class Trainer(_Trainer):
                 bg_color * (1 - images[..., 3:])
         else:
             gt_rgb = images
-            gt_rgb_b = images_b
-            gt_rgb_f = images_f
+            # gt_rgb_b = images_b
+            # gt_rgb_f = images_f
 
         self.opt.inds_s = data['inds_s']
         self.opt.inds_d = data['inds_d']

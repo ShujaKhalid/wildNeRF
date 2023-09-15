@@ -227,14 +227,24 @@ class NeRFDataset:
             self.times = []
 
             # print("frames: {}".format(frames))
+            # Modify data here to account for interpolation
+            # NOTE: Only run this in validation mode
+            FACTOR = 1  # FIXME: Add to config file
+            if (FACTOR > 1 and type == 'val'):
+                frames = np.repeat(frames, FACTOR)
+            else:
+                frames = np.repeat(frames, FACTOR)  # DEBUGGING
+
+            # print('frames: {}'.format(frames))
 
             # assume frames are already sorted by time!
-            for f in tqdm.tqdm(frames, desc=f'Loading {type} data'):
+            for t, f in enumerate(tqdm.tqdm(frames, desc=f'Loading {type} data')):
                 f_path = os.path.join(self.root_path, f['file_path'])
                 if self.mode == 'blender' and '.' not in os.path.basename(f_path):
                     f_path += '.png'  # so silly...
 
                 # there are non-exist paths in fox...
+                # print('f_path: {}'.format(f_path))
                 if not os.path.exists(f_path):
                     continue
 
@@ -270,6 +280,10 @@ class NeRFDataset:
                 else:
                     # assume frame index as time
                     time = int(os.path.basename(f['file_path'])[:-4])
+
+                if (type == 'val'):
+                    time = t/(len(frames))
+                    print('updated_time: {}'.format(time))
 
                 self.poses.append(pose)
                 self.images.append(image)
@@ -314,74 +328,120 @@ class NeRFDataset:
             basedir = self.root_path
             disp_dir = os.path.join(basedir, 'disp')
             sh = image.shape[:2]
-            num_img = len(frames)  # FIXME
+            num_img = len(frames) // FACTOR  # FIXME
 
-            dispfiles = [os.path.join(disp_dir, f)
-                         for f in sorted(os.listdir(disp_dir)) if f.endswith('npy')]
+            # disp files
+            if (os.path.exists(disp_dir)):
+                dispfiles = [os.path.join(disp_dir, f)
+                             for f in sorted(os.listdir(disp_dir)) if f.endswith('npy')]
 
-            disp = [cv2.resize(np.load(f),
-                               (sh[1], sh[0]),
-                               interpolation=cv2.INTER_NEAREST) for f in dispfiles]
-            disp = np.stack(disp, -1)
+                disp = [cv2.resize(np.load(f),
+                                   (sh[1], sh[0]),
+                                   interpolation=cv2.INTER_NEAREST) for f in dispfiles]
+                disp = np.stack(disp, -1)
+
+                # FIXME
+                disp = np.repeat(disp, FACTOR, axis=-1)
+
+            else:
+                disp = torch.zeros(
+                    (self.H, self.W, len(self.images)))
 
             # sk_debug: used to be `motion_masks`
             mask_dir = os.path.join(basedir, 'motion_masks')
-            maskfiles = [os.path.join(mask_dir, f)
-                         for f in sorted(os.listdir(mask_dir)) if f.endswith('png')]
+            if (os.path.exists(mask_dir)):
+                maskfiles = [os.path.join(mask_dir, f)
+                             for f in sorted(os.listdir(mask_dir)) if f.endswith('png')]
 
-            masks = [cv2.resize(cv2.imread(f)/255., (sh[1], sh[0]),
-                                interpolation=cv2.INTER_NEAREST) for f in maskfiles]
-            masks = np.stack(masks, -1)
-            masks = np.float32(masks > 1e-3)
+                masks = [cv2.resize(cv2.imread(f)/255., (sh[1], sh[0]),
+                                    interpolation=cv2.INTER_NEAREST) for f in maskfiles]
+                masks = np.stack(masks, -1)
+                masks = np.float32(masks > 1e-3)
 
-            # val
+                # FIXME
+                masks = np.repeat(masks, FACTOR, axis=-1)
+
+            else:
+                masks = torch.zeros(
+                    (self.H, self.W, 3, len(self.images)))
+
+            # masks_val
             mask_dir_val = os.path.join(basedir, 'motion_masks_val')
-            maskfiles_val = [os.path.join(mask_dir_val, f)
-                             for f in sorted(os.listdir(mask_dir_val)) if f.endswith('png')]
+            if (os.path.exists(mask_dir_val)):
+                maskfiles_val = [os.path.join(mask_dir_val, f)
+                                 for f in sorted(os.listdir(mask_dir_val)) if f.endswith('png')]
 
-            masks_val = [cv2.resize(cv2.imread(f)/255., (sh[1], sh[0]),
-                                    interpolation=cv2.INTER_NEAREST) for f in maskfiles_val]
-            masks_val = np.stack(masks_val, -1)
-            masks_val = np.float32(masks_val > 1e-3)
+                masks_val = [cv2.resize(cv2.imread(f)/255., (sh[1], sh[0]),
+                                        interpolation=cv2.INTER_NEAREST) for f in maskfiles_val]
+                masks_val = np.stack(masks_val, -1)
+                masks_val = np.float32(masks_val > 1e-3)
 
+                # FIXME - for interpolation
+                # if (FACTOR > 1 and type == 'val'):
+                masks_val = np.repeat(masks_val, FACTOR, axis=-1)
+
+            else:
+                masks_val = torch.zeros(
+                    (self.H, self.W, 3, len(self.images)))
+
+            # Flow dir
             flow_dir = os.path.join(basedir, 'flow')
-            flows_f = []
-            flow_masks_f = []
-            flows_b = []
-            flow_masks_b = []
-            for i in range(num_img):
-                if i == num_img - 1:
-                    fwd_flow, fwd_mask = np.zeros(
-                        (sh[0], sh[1], 2)), np.zeros((sh[0], sh[1]))
-                else:
-                    fwd_flow_path = os.path.join(flow_dir, '%05d_fwd.npz' % i)
-                    fwd_data = np.load(fwd_flow_path)
-                    fwd_flow, fwd_mask = fwd_data['flow'], fwd_data['mask']
-                    fwd_flow = resize_flow(fwd_flow, sh[0], sh[1])
-                    fwd_mask = np.float32(fwd_mask)
-                    fwd_mask = cv2.resize(fwd_mask, (sh[1], sh[0]),
-                                          interpolation=cv2.INTER_NEAREST)
-                flows_f.append(fwd_flow)
-                flow_masks_f.append(fwd_mask)
+            if (os.path.exists(flow_dir)):
+                flows_f = []
+                flow_masks_f = []
+                flows_b = []
+                flow_masks_b = []
+                for i in range(num_img):
+                    if i == num_img - 1:
+                        fwd_flow, fwd_mask = np.zeros(
+                            (sh[0], sh[1], 2)), np.zeros((sh[0], sh[1]))
+                    else:
+                        fwd_flow_path = os.path.join(
+                            flow_dir, '%05d_fwd.npz' % i)
+                        fwd_data = np.load(fwd_flow_path)
+                        fwd_flow, fwd_mask = fwd_data['flow'], fwd_data['mask']
+                        fwd_flow = resize_flow(fwd_flow, sh[0], sh[1])
+                        fwd_mask = np.float32(fwd_mask)
+                        fwd_mask = cv2.resize(fwd_mask, (sh[1], sh[0]),
+                                              interpolation=cv2.INTER_NEAREST)
+                    flows_f.append(fwd_flow)
+                    flow_masks_f.append(fwd_mask)
 
-                if i == 0:
-                    bwd_flow, bwd_mask = np.zeros(
-                        (sh[0], sh[1], 2)), np.zeros((sh[0], sh[1]))
-                else:
-                    bwd_flow_path = os.path.join(flow_dir, '%05d_bwd.npz' % i)
-                    bwd_data = np.load(bwd_flow_path)
-                    bwd_flow, bwd_mask = bwd_data['flow'], bwd_data['mask']
-                    bwd_flow = resize_flow(bwd_flow, sh[0], sh[1])
-                    bwd_mask = np.float32(bwd_mask)
-                    bwd_mask = cv2.resize(bwd_mask, (sh[1], sh[0]),
-                                          interpolation=cv2.INTER_NEAREST)
-                flows_b.append(bwd_flow)
-                flow_masks_b.append(bwd_mask)
+                    if i == 0:
+                        bwd_flow, bwd_mask = np.zeros(
+                            (sh[0], sh[1], 2)), np.zeros((sh[0], sh[1]))
+                    else:
+                        bwd_flow_path = os.path.join(
+                            flow_dir, '%05d_bwd.npz' % i)
+                        bwd_data = np.load(bwd_flow_path)
+                        bwd_flow, bwd_mask = bwd_data['flow'], bwd_data['mask']
+                        bwd_flow = resize_flow(bwd_flow, sh[0], sh[1])
+                        bwd_mask = np.float32(bwd_mask)
+                        bwd_mask = cv2.resize(bwd_mask, (sh[1], sh[0]),
+                                              interpolation=cv2.INTER_NEAREST)
+                    flows_b.append(bwd_flow)
+                    flow_masks_b.append(bwd_mask)
 
-            flows_f = np.stack(flows_f, -1)
-            flow_masks_f = np.stack(flow_masks_f, -1)
-            flows_b = np.stack(flows_b, -1)
-            flow_masks_b = np.stack(flow_masks_b, -1)
+                flows_f = np.stack(flows_f, -1)
+                flow_masks_f = np.stack(flow_masks_f, -1)
+                flows_b = np.stack(flows_b, -1)
+                flow_masks_b = np.stack(flow_masks_b, -1)
+
+            else:
+                flows_f = torch.zeros(
+                    (self.H, self.W, 3, len(self.images)))
+                flow_masks_f = torch.zeros(
+                    (self.H, self.W, len(self.images)))
+                flows_b = torch.zeros(
+                    (self.H, self.W, 3, len(self.images)))
+                flow_masks_b = torch.zeros(
+                    (self.H, self.W, len(self.images)))
+
+                # self.masks = torch.zeros_like(self.images).to(self.device)
+                # self.masks_val = torch.zeros_like(self.images).to(self.device)
+                # self.disp = torch.zeros_like(self.images).to(self.device)
+                # self.grid = np.empty(
+                #     (len(self.images), self.H, self.W, 8), np.float32)
 
             imgs = self.images  # sk_debug
 
@@ -396,21 +456,23 @@ class NeRFDataset:
             # print("flow_masks_b.shape: {}".format(flow_masks_b.shape))
             # print("flow_masks_f.shape: {}".format(flow_masks_f.shape))
 
-            self.grid = np.empty((0, self.H, self.W, 8), np.float32)
-            for idx in range(num_img):
-                self.grid = np.concatenate((self.grid, np.stack([i,
-                                                                 j,
-                                                                 flows_f[:,
-                                                                         :, 0, idx],
-                                                                 flows_f[:,
-                                                                         :, 1, idx],
-                                                                 flow_masks_f[:,
-                                                                              :, idx],
-                                                                 flows_b[:,
-                                                                         :, 0, idx],
-                                                                 flows_b[:,
-                                                                         :, 1, idx],
-                                                                 flow_masks_b[:, :, idx]], -1)[None, ...]))
+            self.grid = np.empty(
+                (len(self.images), self.H, self.W, 8), np.float32)
+            # self.grid = np.empty((0, self.H, self.W, 8), np.float32)
+            # for idx in range(num_img):
+            #     self.grid = np.concatenate((self.grid, np.stack([i,
+            #                                                      j,
+            #                                                      flows_f[:,
+            #                                                              :, 0, idx],
+            #                                                      flows_f[:,
+            #                                                              :, 1, idx],
+            #                                                      flow_masks_f[:,
+            #                                                                   :, idx],
+            #                                                      flows_b[:,
+            #                                                              :, 0, idx],
+            #                                                      flows_b[:,
+            #                                                              :, 1, idx],
+            #                                                      flow_masks_b[:, :, idx]], -1)[None, ...]))
 
             # print("imgs.shape: {}".format(imgs.shape))
             # print("disp.shape: {}".format(disp.shape))
@@ -435,6 +497,15 @@ class NeRFDataset:
             # assert(imgs.shape[0] == flow_masks_f.shape[-1])
             # assert(imgs.shape[1] == disp.shape[-1])
             # assert(imgs.shape[1] == masks.shape[-1])
+
+        else:
+            self.masks = torch.ones(
+                (self.H, self.W, 3, len(self.images))).to(self.device)
+            self.masks_val = torch.ones(
+                (self.H, self.W, 3, len(self.images))).to(self.device)
+            self.disp = torch.ones_like(self.images).to(self.device)
+            self.grid = np.empty(
+                (len(self.images), self.H, self.W, 8), np.float32)
 
         if self.preload:
             self.poses = self.poses.to(self.device)
@@ -514,8 +585,37 @@ class NeRFDataset:
             grid = torch.reshape(
                 grid, (grid.shape[0], -1, grid.shape[-1]))
         else:
-            masks = None
-            masks_val = None
+            # FIXME: custom
+            # masks = torch.ones_like(self.images)
+            # masks_val = torch.ones_like(self.images)
+            # self.masks = torch.ones_like(self.images)
+            # self.masks_val = torch.ones_like(self.images)
+            # self.disp = torch.ones_like(self.images)
+
+            # print('masks.shape: {}'.format(masks.shape))
+            # print('masks_val.shape: {}'.format(masks_val.shape))
+
+            masks = torch.reshape(self.masks, (-1, self.masks.shape[2], self.masks.shape[3]))[
+                :, :, index]  # [B, N]
+            masks_val = torch.reshape(self.masks_val, (-1, self.masks_val.shape[2], self.masks_val.shape[3]))[
+                :, :, index]  # [B, N]
+            # self.masks = torch.reshape(self.masks, (-1, self.masks.shape[2], self.masks.shape[3]))[
+            #     :, :, index]  # [B, N]
+            # self.masks_val = torch.reshape(self.masks_val, (-1, self.masks_val.shape[2], self.masks_val.shape[3]))[
+            #     :, :, index]  # [B, N]
+            # self.disp = torch.reshape(self.disp, (-1, self.disp.shape[2], self.disp.shape[3]))[
+            #     :, :, index]  # [B, N]
+
+            # print('masks.shape: {}'.format(masks.shape))
+            # print('masks_val.shape: {}'.format(masks_val.shape))
+
+            # self.grid = np.empty(
+            #     (len(self.images), self.H, self.W, 8), np.float32)
+
+            # grid = torch.Tensor(self.grid)
+            # grid = torch.reshape(
+            #     grid, (grid.shape[0], -1, grid.shape[-1]))
+
             grid = None
 
         if self.training:
