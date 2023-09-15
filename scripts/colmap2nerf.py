@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument('--hold', type=int, default=8,
                         help="hold out for validation every $ images")
 
-    parser.add_argument("--video_fps", default=10)
+    parser.add_argument("--video_fps", default=7)
     parser.add_argument("--time_slice", default="", help="time (in seconds) in the format t1,t2 within which the images should be generated from the video. eg: \"--time_slice '10,300'\" will generate images only from 10th second to 300th second of the video")
 
     parser.add_argument("--colmap_matcher", default="exhaustive", choices=["exhaustive", "sequential", "spatial", "transitive",
@@ -272,7 +272,8 @@ def run_ffmpeg_images(args):
             args.images = new_loc
         elif (args.dataset == "custom"):
             new_loc = base + args.mode + "/"
-            query_loc = "/home/skhalid/Documents/datalake/dnerf/" + args.dataset + "/images/"
+            # query_loc = "/home/skhalid/Documents/datalake/dnerf/" + args.dataset + "/images/"
+            query_loc = args.images + "/images/"
             os.system("mkdir -p "+new_loc)
             files = glob.glob(query_loc+"/*.jpg")
             files.sort()
@@ -281,7 +282,7 @@ def run_ffmpeg_images(args):
                 fn = "000"+str(indx).zfill(2)+".jpg"
                 # fn = file.split("/")[-1]
                 cmd = "ffmpeg -i "+file+" -vf scale=" + \
-                    str(960)+":"+str(540) + " " + new_loc+fn
+                    str(1080)+":"+str(720) + " " + new_loc+fn
                 # print("cmd: {}".format(cmd))
                 os.system(cmd)
 
@@ -306,7 +307,7 @@ def run_colmap(args):
         # f"colmap feature_extractor --ImageReader.camera_model OPENCV --SiftExtraction.estimate_affine_shape {flag_EAS} --SiftExtraction.domain_size_pooling {flag_EAS} --ImageReader.single_camera 1 --SiftExtraction.max_num_features 100000 --database_path {db} --image_path {images}")
         f"colmap feature_extractor --ImageReader.camera_model OPENCV --SiftExtraction.estimate_affine_shape {flag_EAS} --SiftExtraction.domain_size_pooling {flag_EAS} --ImageReader.single_camera 1 --database_path {db} --image_path {images}")
     do_system(
-        f"colmap {args.colmap_matcher}_matcher --SiftMatching.guided_matching {flag_EAS} --SiftMatching.confidence 0.01 --database_path {db}")
+        f"colmap {args.colmap_matcher}_matcher --SiftMatching.guided_matching {flag_EAS} --SiftMatching.confidence 0.9 --database_path {db}")
     try:
         shutil.rmtree(sparse)
     except:
@@ -389,22 +390,24 @@ if __name__ == "__main__":
     if args.video != "" and args.mode == "train":
         root_dir = os.path.dirname(args.video)
         args.images = os.path.join(root_dir, "images")  # override args.images
+        print('root_dir: {}'.format(root_dir))
+        print('args.images: {}'.format(args.images))
         run_ffmpeg(args)
     elif (args.mode == "val"):
-        print(args.images)
-        args.images = args.images[:-
-                                  1] if args.images[-1] == '/' else args.images
+        # args.images = args.images[:-
+        #                           1] if args.images[-1] == '/' else args.images
+        # root_dir = os.path.dirname(args.images)
         root_dir = os.path.dirname(args.images)
-        print(root_dir)
-
+        print('[val] root_dir: {}'.format(root_dir))
+        print('[val] args.images: {}'.format(args.images))
         run_ffmpeg_images(args)
     else:
         # remove trailing / (./a/b/ --> ./a/b)
         args.images = args.images[:-
                                   1] if args.images[-1] == '/' else args.images
         root_dir = os.path.dirname(args.images)
-        print(root_dir)
-        print(args.images)
+        print('root_dir: {}'.format(root_dir))
+        print('args.images: {}'.format(args.images))
         run_ffmpeg_images(args)
 
     # if (args.mode == "val"):

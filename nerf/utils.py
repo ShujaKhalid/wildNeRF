@@ -1156,12 +1156,15 @@ class Trainer(object):
                     # save image
                     EVAL_FLAG = True
                     if (EVAL_FLAG):
+                        # save_path = os.path.join(
+                        #     "results", 'Ours', self.workspace, f'v{0:03d}_t{self.local_step-1:03d}_g{self.global_step-1:03d}.png')
+                        # save_path_gt = os.path.join(
+                        #     "results", 'Ours', self.workspace, f'v{0:03d}_t{self.local_step-1:03d}_g{self.global_step-1:03d}_gt.png')
+                        # save_path_depth = os.path.join(
+                        #     "results", 'Ours', self.workspace, f'v{0:03d}_t{self.local_step-1:03d}_g{self.global_step-1:03d}_depth.png')
+
                         save_path = os.path.join(
                             "results", 'Ours', self.workspace, f'v{0:03d}_t{self.local_step-1:03d}.png')
-                        save_path_gt = os.path.join(
-                            "results", 'Ours', self.workspace, f'v{0:03d}_t{self.local_step-1:03d}_gt.png')
-                        save_path_depth = os.path.join(
-                            "results", 'Ours', self.workspace, f'v{0:03d}_t{self.local_step-1:03d}_depth.png')
 
                         # self.log(f"==> Saving validation image to {save_path}")
                         os.makedirs(os.path.dirname(save_path), exist_ok=True)

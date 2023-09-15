@@ -25,12 +25,23 @@ else
 	SCENE="Playground" #COLMAP: DONE & RECON: DONE 
 fi
 
-DATASET_PATH="/home/skhalid/Documents/datalake/dynamic_scene_data_full/nvidia_data_full/$SCENE/dense"
+echo $2, $3
+
+if [[ "$1" == "--run" && "$2" == "custom" ]]
+then
+	DATASET_PATH=$3
+	SCENE="custom" #COLMAP: DONE & RECON: DONE 
+else
+	DATASET_PATH="/home/skhalid/Documents/datalake/dynamic_scene_data_full/nvidia_data_full/$SCENE/dense" 
+fi
+
+
+
 
 
 # Run custom scene
-SCENE="custom"
-DATASET_PATH="../datalake/dnerf/custom"
+#SCENE=$2
+#DATASET_PATH="../datalake/dnerf/custom"
 
 NM_WEIGHTS="/home/skhalid/Documents/datalake/neural_motion_weights/"
 WEIGHTS_MIDAS=$NM_WEIGHTS"midas_v21-f6b98070.pt"
@@ -50,18 +61,21 @@ if [[ "$1" == "--extract" ]]
 then
 
 	mkdir -p $DATASET_PATH
-	mkdir -p $DATASET_PATH/train
-	mkdir -p $DATASET_PATH/val
-	mkdir -p $DATASET_PATH/test
-	mkdir -p $DATASET_PATH/images_colmap
+	# mkdir -p $DATASET_PATH/train
+	# mkdir -p $DATASET_PATH/val
+	# mkdir -p $DATASET_PATH/test
+	# mkdir -p $DATASET_PATH/images_colmap
 
 	if [[ -f "$2" ]]
 	then
 		echo "Running custom module..."
 	    # We're dealing with a custom video
-		DATASET_PATH="../datalake/dnerf/custom"
+		# DATASET_PATH="../datalake/dnerf/custom"
 		FILENAME=$(basename "$2" .mp4)
+		DATASET_PATH=$(dirname "$2")
 		IMAGE_PTH="images"
+
+		echo '------->'$DATASET_PATH $2 $3 $4
 
 		cp -pr "$2" /tmp
 		rm -rf $DATASET_PATH/*
@@ -76,6 +90,7 @@ then
 		for i in $DATASET_PATH/images/*.png ; do convert "$i" "${i%.*}.jpg" ; done
 		# cp -pr $DATASET_PATH/images/*.jpg $DATASET_PATH/train
 		cp -pr $DATASET_PATH/images/*.jpg $DATASET_PATH/images_colmap
+		cp -pr $DATASET_PATH/images/*.jpg $DATASET_PATH/val
 	else
 		if [[ "$2" == "--nvidia" ]]
 		then
