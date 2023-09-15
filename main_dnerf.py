@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     # =================================================================================
     # training options
-    parser.add_argument('--iters', type=int, default=100,
+    parser.add_argument('--iters', type=int, default=25000,
                         help="training iters")
     parser.add_argument('--lr', type=float, default=1e-2,  # 1e-2
                         help="initial learning rate")
